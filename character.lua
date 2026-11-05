@@ -12,7 +12,7 @@ local Window = R.Window
 
 local HEAD = 34
 local TILE, TILE_GAP = 34, 2
-local BAGS_PER_ROW = 29
+local BAGS_PER_ROW = 29   -- until the real width is known
 
 ---The heading all these panes share: the name, then who they are.
 local function buildHead(frame)
@@ -137,7 +137,7 @@ local function layoutSection(frame, y, title, seen, section, unknownText, shareN
     tile:SetItem(item)
     tile:Show()
     col = col + 1
-    if col >= BAGS_PER_ROW then
+    if col >= frame.perRow then
       col = 0
       y = y - (TILE + TILE_GAP)
     end
@@ -159,7 +159,9 @@ Window:RegisterPane("bags", function(frame)
   frame.tiles, frame.headers, frame.notes = {}, {}, {}
 end, function(frame, key)
   local c = fillHead(frame, key)
-  frame.area.content:SetWidth(frame.area:GetWidth() or 1000)
+  local width = frame.area:GetWidth() or 0
+  frame.area.content:SetWidth(width > 0 and width or 1000)
+  frame.perRow = width > 0 and math.max(1, math.floor((width + TILE_GAP) / (TILE + TILE_GAP))) or BAGS_PER_ROW
   frame.nt, frame.nh, frame.nn = 0, 0, 0
   local y = 0
   y = layoutSection(frame, y, "Bags", c.bags and c.bags.seen, c.bags, "Not read yet. It is read as soon as this character logs in with Retrospect on.")
@@ -236,7 +238,7 @@ end
 
 Window:RegisterPane("mail", function(frame)
   buildHead(frame)
-  frame.table = rowsTable(frame, { { label = "What" }, { label = "Subject", width = 300 }, { label = "Attached", width = 220 }, { label = "Expires", width = 100, right = true } }, { rowHeight = 24 })
+  frame.table = rowsTable(frame, { { label = "What", width = 180 }, { label = "Subject" }, { label = "Attached", width = 200 }, { label = "Expires", width = 80, right = true } }, { rowHeight = 24 })
 end, function(frame, key)
   local c = fillHead(frame, key)
   local rows = {}

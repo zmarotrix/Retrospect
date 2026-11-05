@@ -2,8 +2,8 @@
 -- the rail on the left (All characters, then each character by realm), and tabs over a pane. The
 -- rail sets the scope of everything on the right: tabs, search and what they show.
 --
--- The mockup's layout is 1320 x 800; like Oracle, the window keeps those numbers and is scaled to
--- the same share of the screen, so its proportions hold. Size and opacity are settings.
+-- Dragging the bottom-right corner really resizes the window: lists and tables reflow and the text
+-- keeps its size (saved as RetrospectDB.width and height). Zoom and opacity are settings.
 
 local Core = NorgannonCore
 local R = Retrospect
@@ -15,9 +15,10 @@ local Window = {}
 R.Window = Window
 local Store, Kit = R.Store, R.Kit
 
-local W, H = 1320, 800
+local DEFAULT_W, DEFAULT_H = 1120, 700
+local MIN_W, MIN_H = 980, 560
+local SCREEN_SHARE = .72   -- the most of the screen it starts on
 local RAIL = 244
-local SCREEN_SHARE = .88
 local SEARCH_WIDTH = 330
 
 local ALL_TABS = { { key = "today", label = "Today" }, { key = "items", label = "Items" }, { key = "compare", label = "Compare" }, { key = "gold", label = "Gold" } }
@@ -52,6 +53,11 @@ local function paneFrame(key)
   if not p.frame then
     p.frame = CreateFrame("Frame", nil, win.paneArea)
     p.frame:SetAllPoints()
+    -- what depends on the real width (Compare's columns, the bag grid) is drawn again once it's
+    -- known; a drag waits for the mouse button, the virtual lists and the chart follow it live
+    p.frame:SetScript("OnSizeChanged", function(self)
+      if self:IsVisible() and not win.sizing then Window:RefreshSoon() end
+    end)
     p.build(p.frame)
   end
   return p.frame
@@ -187,21 +193,87 @@ end
 -- The frame
 -------------------------------------------------------------------------------------------
 
-function Window.Scale()
-  local screen = UIParent:GetHeight() or 768
-  return math.min(1.25, screen * SCREEN_SHARE / H) * (R.db.scale or 1)
+function Window.Scale() return R.db.scale or 1 end
+
+---The window's size in its own units: what was dragged to, else a default that fits the screen.
+---Never smaller than the panes can lay out, never bigger than the screen.
+function Window.Size()
+  local s = Window.Scale()
+  local screenW, screenH = (UIParent:GetWidth() or 1366) / s, (UIParent:GetHeight() or 768) / s
+  local w = R.db.width or math.min(DEFAULT_W, screenW * SCREEN_SHARE)
+  local h = R.db.height or math.min(DEFAULT_H, screenH * SCREEN_SHARE)
+  return math.floor(math.min(screenW, math.max(MIN_W, w))), math.floor(math.min(screenH, math.max(MIN_H, h)))
 end
 
 function Window:ApplyLook()
   if not win then return end
-  win:SetSize(W, H)
+  win:SetSize(Window.Size())
   win:SetScale(Window.Scale())
   win:SetAlpha(R.db.opacity or 1)
   win.locked = R.db.locked and true or false
+  win.grip:SetShown(not R.db.locked)
+end
+
+---Back to the default size.
+function Window:ResetSize()
+  R.db.width, R.db.height = nil, nil
+  self:ApplyLook()
+  self:Refresh()
+end
+
+local function cursor()
+  local x, y = GetCursorPosition()
+  local s = win:GetEffectiveScale()
+  return x / s, y / s
+end
+
+local function buildGrip()
+  local grip = CreateFrame("Button", nil, win)
+  grip:SetSize(16, 16)
+  grip:SetPoint("BOTTOMRIGHT", -3, 3)
+  grip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+  grip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+  grip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+  grip:SetScript("OnMouseDown", function(self, button)
+    if button ~= "LeftButton" or R.db.locked then return end
+    -- hold the top-left corner
+    local left, top = win:GetLeft() or 0, win:GetTop() or 0
+    win:ClearAllPoints()
+    win:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+    if Core.db and Core.db.windows then
+      Core.db.windows.RetrospectWindow = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = left, y = top }
+    end
+    self.startX, self.startY = cursor()
+    self.startW, self.startH = win:GetWidth(), win:GetHeight()
+    win.sizing = true
+    self:SetScript("OnUpdate", function()
+      local x, y = cursor()
+      R.db.width, R.db.height = self.startW + x - self.startX, self.startH + self.startY - y
+      win:SetSize(Window.Size())
+    end)
+  end)
+  grip:SetScript("OnMouseUp", function(self)
+    self:SetScript("OnUpdate", nil)
+    if win.sizing then
+      win.sizing = false
+      R.db.width, R.db.height = Window.Size()
+      Window:Refresh()
+    end
+  end)
+  grip:RegisterForClicks("RightButtonUp")
+  grip:SetScript("OnClick", function() Window:ResetSize() end)
+  grip:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Drag to resize the window", 1, 1, 1)
+    GameTooltip:AddLine("Right-click: the default size", C.muted[1], C.muted[2], C.muted[3])
+    GameTooltip:Show()
+  end)
+  grip:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  win.grip = grip
 end
 
 local function build()
-  win = UI.Window({ name = "RetrospectWindow", addon = "retrospect", title = "Retrospect", width = W, height = H, footer = true })
+  win = UI.Window({ name = "RetrospectWindow", addon = "retrospect", title = "Retrospect", width = DEFAULT_W, height = DEFAULT_H, footer = true })
   win:SetAccent("retrospect")
   win:Hide()
 
@@ -268,8 +340,9 @@ local function build()
   -- the footer's settings button
   win.gear = UI.Button(win.footer, "Settings", "quiet", function() R:OpenSettings() end)
   win.gear:SetHeight(20)
-  win.gear:SetPoint("RIGHT", -10, 0)
+  win.gear:SetPoint("RIGHT", -24, 0)
 
+  buildGrip()
   Window:ApplyLook()
 end
 
@@ -361,4 +434,4 @@ function Window:ShowQuest(id)
   self:Refresh()
 end
 
-Window.W, Window.H, Window.RAIL = W, H, RAIL
+Window.MIN_W, Window.MIN_H, Window.RAIL = MIN_W, MIN_H, RAIL

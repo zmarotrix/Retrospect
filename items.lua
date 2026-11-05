@@ -13,6 +13,7 @@ R.Items = Items
 local Kit, Store, Index = R.Kit, R.Store, R.Index
 
 local DETAIL = 400
+local DETAIL_SHARE = .45   -- of the pane's width, at most
 local ICON = 30
 local COUNT = 60    -- the count column
 local MAX_ACTIONS = 3
@@ -219,7 +220,7 @@ end
 local function build(frame)
   local chips = CreateFrame("Frame", nil, frame)
   chips:SetPoint("TOPLEFT")
-  chips:SetPoint("TOPRIGHT", -(DETAIL + 12), 0)
+  chips:SetPoint("TOPRIGHT", 0, 0)
   chips:SetHeight(24)
   local label = UI.Text(chips, "body", 12, C.faint)
   label:SetPoint("LEFT", 0, 0)
@@ -245,7 +246,6 @@ local function build(frame)
 
   frame.pane = UI.Pane(frame)
   frame.pane:SetPoint("TOPLEFT", chips, "BOTTOMLEFT", 0, -6)
-  frame.pane:SetPoint("BOTTOMRIGHT", -(DETAIL + 12), 0)
   frame.list = UI.List(frame.pane, {
     rowHeight = 42, createRow = createRow, updateRow = updateRow,
     onClick = function(item, _, button)
@@ -265,9 +265,10 @@ local function build(frame)
   frame.empty:SetPoint("TOPRIGHT", -14, -14)
 
   local card = UI.Card(frame)
-  card:SetPoint("TOPRIGHT")
+  card:SetPoint("TOPRIGHT", chips, "BOTTOMRIGHT", 0, -6)
   card:SetPoint("BOTTOMRIGHT")
   card:SetWidth(DETAIL)
+  frame.pane:SetPoint("BOTTOMRIGHT", card, "BOTTOMLEFT", -12, 0)
   frame.card = card
   card.tile = Kit.ItemTile(card.body, 36)
   card.tile:SetPoint("TOPLEFT")
@@ -296,6 +297,9 @@ end
 
 local function fill(frame, scopeKey)
   frame.scopeKey = scopeKey
+  -- the card gives way first in a narrow window, so the list stays usable
+  local width = frame:GetWidth() or 0
+  frame.card:SetWidth(width > 0 and math.min(DETAIL, math.floor(width * DETAIL_SHARE)) or DETAIL)
   local query = R.Window:Get().search:GetText() or ""
   local found = Index:Search({ query = query, scope = scopeKey, hidePlaces = hide, mailable = mailable })
   local items = {}

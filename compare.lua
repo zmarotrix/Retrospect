@@ -387,10 +387,6 @@ end
 
 local function build(frame)
   Compare.frame = frame
-  -- how many columns fit depends on the real width, known once the frame is laid out
-  frame:SetScript("OnSizeChanged", function(self)
-    if self:IsVisible() then R.Window:RefreshSoon() end
-  end)
   frame.modes = Kit.Modes(frame, MODES, function(key)
     R.db.cmp = key
     R.Window:Refresh()

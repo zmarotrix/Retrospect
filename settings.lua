@@ -46,21 +46,22 @@ Core:OnLogin(function()
   local list = UI.SettingsList(page)
 
   list:Header("Window")
-  list:Slider("Window size", nil, .6, 1.6, .05,
+  list:Slider("Zoom", "Makes everything bigger or smaller, text too. To change only the window's size, drag its bottom-right corner.", .6, 1.6, .05,
     function() return R.db.scale or 1 end,
     function(v) R.db.scale = v R.Window:ApplyLook() end, "%.0f%%", 100)
   list:Slider("Window opacity", nil, .4, 1, .05,
     function() return R.db.opacity or 1 end,
     function(v) R.db.opacity = v R.Window:ApplyLook() end, "%.0f%%", 100)
-  list:Toggle("Lock the window", "Stops it from being moved.",
+  list:Toggle("Lock the window", "Stops it from being moved or resized.",
     function() return R.db.locked end,
     function(on) R.db.locked = on R.Window:ApplyLook() end)
-  list:Buttons("Position", "Puts the window back in the middle of the screen.", { { "Reset position", function()
+  list:Buttons("Position and size", "Puts the window back in the middle of the screen, at its default size.", { { "Reset", function()
     if Core.db and Core.db.windows then Core.db.windows.RetrospectWindow = nil end
     local win = R.Window:Get()
     if win then
       win:ClearAllPoints()
       win:SetPoint("CENTER")
+      R.Window:ResetSize()
     end
   end } })
   list:Toggle("Show the minimap button", "Retrospect is also in the game's addon menu and opens with /retro.",

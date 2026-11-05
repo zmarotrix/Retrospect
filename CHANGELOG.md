@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1, 2026-11-05
+
+- **Resizable:** drag the window's bottom-right corner; lists and tables reflow and the text keeps
+  its size. Right-click the corner for the default size. It also starts smaller, at about 1120 x 700.
+- The settings' size slider is now Zoom, which scales everything, text too.
+
 ## 0.9.0, 2026-11-05
 
 The first build. It has passed its harness but hasn't been played in game; `/retro probe` says what
