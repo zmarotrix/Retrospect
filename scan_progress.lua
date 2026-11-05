@@ -88,8 +88,21 @@ function Scan:Professions()
   local n = 0
   for _ in pairs(skills) do n = n + 1 end
   Scan.Note("Professions", n > 0, n .. " professions")
+  if n > 0 and not R.db.probe["Recipes"] then
+    Scan.Note("Recipes", false, "IsSpellKnown found none; open a profession to read it")
+  end
   R:Changed(Store:MyKey())
 end
+
+-- a window that opens and gives nothing is worth knowing about, for /retro probe
+Core:On("TRADE_SKILL_SHOW", "retrospect.recipes", function()
+  C_Timer.After(2, function()
+    local probe = R.db.probe["Recipes"]
+    if probe and not probe.ok then
+      Scan.Note("Recipes", false, "a profession window opened but no recipes could be read")
+    end
+  end)
+end)
 
 Core:Listen("NORGANNON_SKILLS_CHANGED", "retrospect", function() Scan:Professions() end)
 Core:Listen("NORGANNON_RECIPES_SCANNED", "retrospect", function(_, skill, count, source)
@@ -179,7 +192,8 @@ function Scan:Reputation()
   end
 
   local c = Store:Me()
-  local list, group, n = {}, nil, 0
+  -- on top of what's known: a faction hidden by a collapsed header while the window is open is still met
+  local list, group, n = c.reputation and c.reputation.list or {}, nil, 0
   for i = 1, total do
     local data = factionAt(i)
     if data then

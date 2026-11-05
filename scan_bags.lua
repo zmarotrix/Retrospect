@@ -14,7 +14,7 @@ local function bagIndex()
 end
 
 ---One container as { id, size, free, items = packed }, or nil if it has no slots.
-local function readContainer(id, name)
+local function readContainer(id, name, keyring)
   local size = R.In("C_Container", "GetContainerNumSlots", id)
   if not size or size <= 0 then return nil end
   local out, free = {}, 0
@@ -26,17 +26,20 @@ local function readContainer(id, name)
       free = free + 1
     end
   end
-  return { id = id, size = size, free = free, name = name, items = table.concat(out, ";") }
+  return { id = id, size = size, free = free, name = name, keyring = keyring, items = table.concat(out, ";") }
 end
 
 local function readSection(list)
   local section = { seen = R.Now(), slots = 0, free = 0, containers = {} }
   for _, spec in ipairs(list) do
-    local box = readContainer(spec.id, spec.name)
+    local box = readContainer(spec.id, spec.name, spec.keyring)
     if box then
       table.insert(section.containers, box)
-      section.slots = section.slots + box.size
-      section.free = section.free + box.free
+      -- keys go nowhere else, so the keyring's slots aren't bag space
+      if not box.keyring then
+        section.slots = section.slots + box.size
+        section.free = section.free + box.free
+      end
     end
   end
   return section
@@ -46,14 +49,22 @@ end
 -- Bags: only the bags that changed are read again
 -------------------------------------------------------------------------------------------
 
+---A bag's own name ("Small Silk Pack"), from the item in its slot.
+local function bagName(id, fallback)
+  local slot = R.In("C_Container", "ContainerIDToInventoryID", id)
+  local link = slot and R.Global("GetInventoryItemLink", "player", slot)
+  return link and link:match("%[(.-)%]") or fallback
+end
+
 local function bagList()
   local B = bagIndex()
-  local list = {
-    { id = B.Backpack or 0, name = "Backpack" }, { id = B.Bag_1 or 1, name = "Bag 1" }, { id = B.Bag_2 or 2, name = "Bag 2" },
-    { id = B.Bag_3 or 3, name = "Bag 3" }, { id = B.Bag_4 or 4, name = "Bag 4" },
-  }
-  if B.ReagentBag then list[#list + 1] = { id = B.ReagentBag, name = "Reagent bag" } end
-  if B.Keyring then list[#list + 1] = { id = B.Keyring, name = "Keyring" } end
+  local list = { { id = B.Backpack or 0, name = "Backpack" } }
+  for i = 1, 4 do
+    local id = B["Bag_" .. i] or i
+    list[#list + 1] = { id = id, name = bagName(id, "Bag " .. i) }
+  end
+  if B.ReagentBag then list[#list + 1] = { id = B.ReagentBag, name = bagName(B.ReagentBag, "Reagent bag") } end
+  if B.Keyring then list[#list + 1] = { id = B.Keyring, name = "Keyring", keyring = true } end
   return list
 end
 

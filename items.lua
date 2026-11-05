@@ -54,8 +54,8 @@ Items.HoldingAge = holdingAge
 
 ---Short kind of item, from the client when it knows ("Trade Goods"), else nothing.
 local function kindOf(id)
-  local _, _, _, _, _, class = R.In("C_Item", "GetItemInfoInstant", id)
-  return type(class) == "string" and class or nil
+  local _, kind = R.In("C_Item", "GetItemInfoInstant", id)
+  return type(kind) == "string" and kind ~= "" and kind or nil
 end
 
 -------------------------------------------------------------------------------------------
@@ -243,6 +243,13 @@ local function build(frame)
     R.Window:Refresh()
   end)
   frame.mailable:SetPoint("LEFT", previous, "RIGHT", 14, 0)
+  frame.mailable:HookScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_TOP")
+    GameTooltip:AddLine("Can be mailed", 1, 1, 1)
+    GameTooltip:AddLine("Hides soulbound and worn items: only what you could send to another character.", C.muted[1], C.muted[2], C.muted[3], true)
+    GameTooltip:Show()
+  end)
+  frame.mailable:HookScript("OnLeave", function() GameTooltip:Hide() end)
 
   frame.pane = UI.Pane(frame)
   frame.pane:SetPoint("TOPLEFT", chips, "BOTTOMLEFT", 0, -6)

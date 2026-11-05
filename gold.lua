@@ -154,7 +154,7 @@ local function drawChart(frame, values)
     g:SetEndPoint("BOTTOMLEFT", chart, w - RIGHT, y)
     local t = chart.labels[i]
     if not t then
-      t = UI.Text(chart, "body", 11, C.faint)
+      t = UI.Text(chart, "body", 11, C.muted)
       chart.labels[i] = t
     end
     t:ClearAllPoints()
@@ -166,7 +166,7 @@ local function drawChart(frame, values)
   for i, share in ipairs({ 0, .5, 1 }) do
     local t = chart.labels[3 + i]
     if not t then
-      t = UI.Text(chart, "body", 11, C.faint)
+      t = UI.Text(chart, "body", 11, C.muted)
       chart.labels[3 + i] = t
     end
     t:ClearAllPoints()

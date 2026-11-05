@@ -28,12 +28,6 @@ local NOTES = {
   quest = "Completed quests are stored per character, from the first time each logs in with Retrospect.",
 }
 
-local STANDING = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
-local STANDING_BG = {
-  { .8, .13, .13, .3 }, { .8, .13, .13, .24 }, { .8, .13, .13, .16 }, { 1, .82, 0, .14 },
-  { .25, .75, .25, .16 }, { .25, .75, .25, .26 }, { .25, .75, .63, .3 }, { .25, .78, .86, .36 },
-}
-
 local firstColumn = 1
 local questQuery, questFocus
 
@@ -41,19 +35,6 @@ function Compare:FocusQuest(id)
   questFocus = id
   questQuery = nil
 end
-
-local function standingName(reaction)
-  return rawget(_G, "FACTION_STANDING_LABEL" .. tostring(reaction)) or STANDING[reaction] or "?"
-end
-Compare.StandingName = standingName
-Compare.STANDING_BG = STANDING_BG
-
----"8,950 / 21,000", or nil at the top of the scale.
-local function repProgress(r)
-  if not (r.value and r.low and r.high) or r.high <= r.low then return nil end
-  return Kit.Commas(r.value - r.low) .. " / " .. Kit.Commas(r.high - r.low)
-end
-Compare.RepProgress = repProgress
 
 -------------------------------------------------------------------------------------------
 -- Rows: { group = "..." } or { label, sub, kind, id, cells = { [key] = { text, small, color, bg } } }
@@ -90,7 +71,10 @@ local function repRows()
       for _, entry in ipairs(Store:List()) do
         local r = entry.c.reputation and entry.c.reputation.list and entry.c.reputation.list[id]
         if r then
-          row.cells[entry.key] = { text = standingName(r.reaction), small = repProgress(r), bg = STANDING_BG[r.reaction] }
+          local ratio, numbers = Kit.StandingProgress(r)
+          local color = Kit.STANDING[r.reaction] or C.text
+          row.cells[entry.key] = { text = Kit.StandingName(r.reaction), small = numbers, color = color, bar = ratio,
+            bg = { color[1], color[2], color[3], .1 } }
         end
       end
       rows[#rows + 1] = row
@@ -292,6 +276,10 @@ local function cellOf(row, content, i)
   cell.small:SetPoint("BOTTOM", 0, 2)
   cell.small:SetJustifyH("CENTER")
   cell.small:SetWordWrap(false)
+  cell.bar = UI.Bar(cell, nil, 3)
+  cell.bar:SetPoint("BOTTOMLEFT", 5, 3)
+  cell.bar:SetPoint("BOTTOMRIGHT", -5, 3)
+  cell.bar:Hide()
   row.cellFrames[i] = cell
   return cell
 end
@@ -374,8 +362,15 @@ local function updateRow(row, item)
         cell.text:SetTextColor(C.faint[1], C.faint[2], C.faint[3])
       end
       cell.small:SetText(v and v.small or "")
+      cell.small:ClearAllPoints()
+      cell.small:SetPoint("CENTER", 0, (v and v.bar) and -3 or -6)
       cell.text:ClearAllPoints()
-      cell.text:SetPoint("CENTER", 0, (v and v.small) and 5 or 0)
+      cell.text:SetPoint("CENTER", 0, (v and v.small) and ((v and v.bar) and 8 or 6) or ((v and v.bar) and 3 or 0))
+      cell.bar:SetShown(v and v.bar ~= nil)
+      if v and v.bar then
+        cell.bar:ApplyAccent(v.color or C.goldSoft)
+        cell.bar:SetProgress(v.bar, 1)
+      end
       local bg = v and v.bg or { 1, 1, 1, .03 }
       cell.bg:SetColorTexture(bg[1], bg[2], bg[3], bg[4])
       cell:Show()

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.2, 2026-11-05
+
+From the first real saved file, and a design pass over every screen.
+
+- **Reputation:** each standing in its colour with a bar through it and the numbers, a summary
+  at the top, and a choice of By group or By standing. Compare's reputation grid matches.
+- **Bags & Bank:** organized. By type sorts each place into Gear, Consumables, Trade goods, Recipes,
+  Quest items, Keys, Junk and Other, with stacks added up and chips to show one kind. By bag lays
+  them out as the game does, with each bag's own name. Each place shows how full it is.
+- **Professions:** a heading with a bar for each profession, and All / Known / Not known.
+- **Clearer:** quality edges only where they mean something, hover on item tiles, stronger contrast
+  for information that was faint; Overview's Bag space and Professions lead to their tabs.
+- **Fixed:** the keyring no longer counts as bag space. Logging out no longer wipes the rest reading.
+  A spec that is only the class's name ("Druid Druid") isn't shown.
+- **Learned in game:** `IsSpellKnown` doesn't find recipes on Forever, so recipes appear once you
+  open each profession. `/retro probe` says so.
+
 ## 0.9.1, 2026-11-05
 
 - **Resizable:** drag the window's bottom-right corner; lists and tables reflow and the text keeps

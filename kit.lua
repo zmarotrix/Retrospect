@@ -20,6 +20,25 @@ Kit.DOWN = { 1, .58, .47 }       -- less gold, urgent
 Kit.PART = { 1, .82, 0 }         -- on the way
 Kit.UNKNOWN = { .85, .63, .4 }   -- not seen, old
 
+-- the standings, red through yellow and green to blue; the word always goes with the colour
+Kit.STANDING = {
+  { .95, .35, .3 }, { 1, .45, .35 }, { 1, .6, .25 }, { 1, .85, .3 },
+  { .55, .85, .4 }, { .3, .85, .45 }, { .3, .85, .75 }, { .4, .8, 1 },
+}
+local STANDING_WORD = { "Hated", "Hostile", "Unfriendly", "Neutral", "Friendly", "Honored", "Revered", "Exalted" }
+
+---The client's word for a standing.
+function Kit.StandingName(reaction)
+  return rawget(_G, "FACTION_STANDING_LABEL" .. tostring(reaction)) or STANDING_WORD[reaction] or "?"
+end
+
+---How far through a standing: 0 to 1 (a full bar at the top of the scale), and "1,023 / 6,000" or nil.
+function Kit.StandingProgress(r)
+  if not (r.value and r.low and r.high) or r.high <= r.low then return 1, nil end
+  local into, span = r.value - r.low, r.high - r.low
+  return math.max(0, math.min(1, into / span)), Kit.Commas(into) .. " / " .. Kit.Commas(span)
+end
+
 local CLASS = {
   WARRIOR = { .78, .61, .43 }, PALADIN = { .96, .55, .73 }, HUNTER = { .67, .83, .45 }, ROGUE = { 1, .96, .41 },
   PRIEST = { 1, 1, 1 }, SHAMAN = { 0, .44, .87 }, MAGE = { .25, .78, .92 }, WARLOCK = { .53, .53, .93 }, DRUID = { 1, .49, .04 },
@@ -75,7 +94,7 @@ local OLD = 14 * 86400
 function Kit.Seen(at, never)
   if not at then return UI.Code(Kit.UNKNOWN) .. (never or "never opened") .. "|r" end
   local old = R.Now() - at > OLD
-  return UI.Code(old and Kit.UNKNOWN or C.faint) .. "seen " .. R.Today.Ago(at) .. "|r"
+  return UI.Code(old and Kit.UNKNOWN or C.muted) .. "seen " .. R.Today.Ago(at) .. "|r"
 end
 
 ---A character's played time: "41d 6h".
@@ -105,29 +124,41 @@ function Kit.ItemTile(parent, size)
   b.icon:SetTexCoord(.07, .93, .07, .93)
   b.count = UI.Text(b, "bold", 12, { 1, 1, 1 }, "OVERLAY")
   b.count:SetPoint("BOTTOMRIGHT", -2, 2)
+  b.count:SetShadowColor(0, 0, 0, 1)
+  b.count:SetShadowOffset(1, -1)
+  b.glow = UI.Tex(b, "OVERLAY", 1, { 1, 1, 1, .14 })
+  b.glow:SetPoint("TOPLEFT", 2, -2)
+  b.glow:SetPoint("BOTTOMRIGHT", -2, 2)
+  b.glow:Hide()
 
   function b:SetItem(item)
     self.item = item
     if not item then
       self.icon:Hide()
       self.count:SetText("")
-      self.edge:SetColorTexture(C.line[1], C.line[2], C.line[3], 1)
+      self.edge:SetColorTexture(C.line[1], C.line[2], C.line[3], .6)
       return
     end
     self.icon:SetTexture(R.In("C_Item", "GetItemIconByID", item.id) or 134400)
     self.icon:Show()
     self.count:SetText((item.count or 1) > 1 and tostring(item.count) or "")
-    local q = Kit.QualityColor(R.Index:Quality(item.id) or item.q)
-    self.edge:SetColorTexture(q[1], q[2], q[3], (item.q or 1) >= 2 and .9 or .25)
+    -- a coloured edge only where it says something: uncommon and better
+    local quality = R.Index:Quality(item.id) or item.q or 1
+    local q = quality >= 2 and Kit.QualityColor(quality) or C.lineStrong
+    self.edge:SetColorTexture(q[1], q[2], q[3], 1)
   end
 
   b:SetScript("OnEnter", function(self)
     if not self.item then return end
+    self.glow:Show()
     GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
     GameTooltip:SetHyperlink(self.item.link or ("item:" .. self.item.id))
     GameTooltip:Show()
   end)
-  b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+  b:SetScript("OnLeave", function(self)
+    self.glow:Hide()
+    GameTooltip:Hide()
+  end)
   b:SetScript("OnClick", function(self, button)
     if not self.item then return end
     Kit.ItemClick(self, self.item.id, button, self.item.link)
@@ -157,7 +188,8 @@ end
 --   t:SetRows({ { group = "Horde" }, { cells = { "Orgrimmar", "Honored" }, tip = fn(tt), onClick = fn(button, row) } })
 --
 -- One column without a width takes what is left. A row { note = "..." } is one line of quiet text
--- across the table. A row's `item` puts a tile before the first cell.
+-- across the table. A row's `item` puts a tile before the first cell. A column { bar = true } draws
+-- its cell { ratio, color } as a progress bar. A row { heading = true } stands out from those under it.
 -------------------------------------------------------------------------------------------
 
 local TILE = 18
@@ -185,7 +217,8 @@ function Kit.Table(parent, cols, opts)
     end
   end
 
-  local function place(fs, i, parentFrame)
+  local function place(region, i, parentFrame)
+    local fs = region
     local col = cols[i]
     if not col.width then
       fs:SetPoint("LEFT", parentFrame, "LEFT", left[i], 0)
@@ -197,6 +230,7 @@ function Kit.Table(parent, cols, opts)
       fs:SetPoint("RIGHT", parentFrame, "RIGHT", -right[i], 0)
       fs:SetWidth(col.width)
     end
+    if col.bar then return end
     fs:SetJustifyH(col.right and "RIGHT" or "LEFT")
     fs:SetWordWrap(false)
   end
@@ -211,8 +245,17 @@ function Kit.Table(parent, cols, opts)
     rule:SetPoint("BOTTOMRIGHT")
     f.headers = {}
     for i, col in ipairs(cols) do
-      local fs = UI.Text(f.header, "body", 12, C.faint)
-      place(fs, i, f.header)
+      local fs = UI.Text(f.header, "body", 12, C.muted)
+      if col.bar then
+        fs:SetPoint("LEFT", f.header, "LEFT", left[i] or 0, 0)
+        if not left[i] then
+          fs:ClearAllPoints()
+          fs:SetPoint("RIGHT", f.header, "RIGHT", -right[i], 0)
+          fs:SetWidth(col.width)
+        end
+      else
+        place(fs, i, f.header)
+      end
       fs:SetText(col.label or "")
       f.headers[i] = fs
     end
@@ -222,10 +265,21 @@ function Kit.Table(parent, cols, opts)
     rowHeight = rowHeight,
     groupBand = true,
     createRow = function(row, content)
-      row.cells = {}
-      for i in ipairs(cols) do
+      row.cells, row.bars = {}, {}
+      row.headBack = UI.Tex(content, "BACKGROUND", 0, { 1, 1, 1, .05 })
+      row.headBack:SetAllPoints()
+      row.headBack:Hide()
+      for i, col in ipairs(cols) do
+        if col.bar then
+          local bar = UI.Bar(content, nil, 7)
+          place(bar, i, content)
+          row.bars[i] = bar
+        end
+        -- a bar column can also hold text, row by row (a heading's bar over a list's states)
         local fs = UI.Text(content, "body", 13, C.text)
         place(fs, i, content)
+        fs:SetJustifyH(col.right and "RIGHT" or "LEFT")
+        fs:SetWordWrap(false)
         row.cells[i] = fs
       end
       row.noteText = UI.Text(content, "body", 13, C.muted)
@@ -237,6 +291,8 @@ function Kit.Table(parent, cols, opts)
       row.tile:Hide()
     end,
     updateRow = function(row, item)
+      row.headBack:SetShown(item.heading == true)
+      for _, bar in pairs(row.bars) do bar:Hide() end
       if item.note then
         row.noteText:SetText(item.note)
         row.noteText:Show()
@@ -245,7 +301,20 @@ function Kit.Table(parent, cols, opts)
         return
       end
       row.noteText:Hide()
-      for i, fs in ipairs(row.cells) do fs:SetText(item.cells and item.cells[i] or "") end
+      for i, fs in ipairs(row.cells) do
+        local value = item.cells and item.cells[i]
+        if type(value) == "table" then
+          fs:SetText("")
+          local bar = row.bars[i]
+          if bar then
+            bar:ApplyAccent(value.color or C.goldSoft)
+            bar:SetProgress(value.ratio or 0, 1)
+            bar:Show()
+          end
+        else
+          fs:SetText(value or "")
+        end
+      end
       row.cells[1]:ClearAllPoints()
       if item.item then
         row.tile:SetItem(item.item)

@@ -49,11 +49,15 @@ end
 
 function Scan:Rest()
   local c = Store:Me()
-  c.xp = R.Global("UnitXP", "player") or c.xp
-  c.xpMax = R.Global("UnitXPMax", "player") or c.xpMax
-  c.rest = R.Global("GetXPExhaustion") or 0
+  -- the client reports 0 for a level's XP while logging out; the last real reading stands
+  local xpMax = R.Global("UnitXPMax", "player")
+  if xpMax and xpMax > 0 then
+    c.xpMax = xpMax
+    c.xp = R.Global("UnitXP", "player") or c.xp
+    c.rest = R.Global("GetXPExhaustion") or 0
+  end
   c.resting = R.Global("IsResting") and true or false
-  Scan.Note("Rest", c.xpMax ~= nil, c.xpMax and string.format("%d rested of %d", c.rest, c.xpMax) or "UnitXPMax gave nothing")
+  Scan.Note("Rest", c.xpMax ~= nil, c.xpMax and string.format("%d rested of %d", c.rest or 0, c.xpMax) or "UnitXPMax gave nothing")
 end
 
 function Scan:Where()
@@ -68,15 +72,17 @@ local function readSpec(c)
   local index = R.In("C_SpecializationInfo", "GetSpecialization")
   if not index then return end
   local _, name = R.In("C_SpecializationInfo", "GetSpecializationInfo", index)
-  c.spec = name or c.spec
-  return name ~= nil
+  -- a class without specs reports its own name ("Druid"), which says nothing
+  if name and name ~= c.className then c.spec = name else c.spec = nil end
+  return c.spec ~= nil
 end
 
 function Scan:Basics()
   local c = Store:Me()
   c.name = R.Global("UnitName", "player") or c.name
   c.realm = R.Global("GetRealmName") or c.realm
-  local _, class = R.Global("UnitClass", "player")
+  local className, class = R.Global("UnitClass", "player")
+  c.className = className or c.className
   local race = R.Global("UnitRace", "player")
   c.class, c.race = class or c.class, race or c.race
   c.faction = R.Global("UnitFactionGroup", "player") or c.faction

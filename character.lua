@@ -11,8 +11,6 @@ local Kit, Store, Today = R.Kit, R.Store, R.Today
 local Window = R.Window
 
 local HEAD = 34
-local TILE, TILE_GAP = 34, 2
-local BAGS_PER_ROW = 29   -- until the real width is known
 
 ---The heading all these panes share: the name, then who they are.
 local function buildHead(frame)
@@ -23,6 +21,7 @@ local function buildHead(frame)
 end
 
 local function classWord(c)
+  if c.className then return c.className end
   local token = tostring(c.class or "")
   return token:sub(1, 1) .. string.lower(token:sub(2))
 end
@@ -34,6 +33,7 @@ local function fillHead(frame, key)
   frame.facts:SetText(who .. " · " .. tostring(c.realm) .. (c.guild and (" · <" .. c.guild .. ">") or ""))
   return c
 end
+R.CharacterHead = { Build = buildHead, Fill = fillHead, HEIGHT = HEAD }
 
 local function rowsTable(frame, cols, opts)
   local t = Kit.Table(frame, cols, opts)
@@ -61,7 +61,10 @@ Window:RegisterPane("over", function(frame)
 end, function(frame, key)
   local c = fillHead(frame, key)
   local rows = {}
-  local function add(label, value) rows[#rows + 1] = { cells = { UI.Code(C.muted) .. label .. "|r", value } } end
+  local function add(label, value, tab)
+    rows[#rows + 1] = { cells = { UI.Code(C.muted) .. label .. "|r", value },
+      onClick = tab and function() Window:Select(key, tab) end or nil }
+  end
   local mine = key == Store:MyKey()
   add("Last seen", (mine and "Now" or Today.Ago(c.seen)) .. (c.zone and (", " .. c.zone) or ""))
   add("Gold", Kit.Money(c.money or 0))
@@ -70,12 +73,12 @@ end, function(frame, key)
   if rest then
     add("Rested", string.format("%d%% of a level%s", math.floor(rest * 100 + .5), estimate and UI.Code(C.faint) .. " (estimate)|r" or ""))
   end
-  add("Bag space", c.bags and string.format("%d of %d free", c.bags.free, c.bags.slots) or Kit.Seen(nil))
+  add("Bag space", c.bags and string.format("%d of %d free", c.bags.free, c.bags.slots) or Kit.Seen(nil), "bags")
   add("Item level", c.ilvl and tostring(math.floor(c.ilvl)) or UI.Code(C.faint) .. "—|r")
   local profs = {}
   for _, p in pairs(c.professions and c.professions.skills or {}) do profs[#profs + 1] = tostring(p.name) .. " " .. tostring(p.rank) end
   table.sort(profs)
-  add("Professions", #profs > 0 and table.concat(profs, " · ") or "None")
+  add("Professions", #profs > 0 and table.concat(profs, " · ") or "None", "prof")
   add("Hearthstone", c.bind or UI.Code(C.faint) .. "—|r")
   frame.factRows:SetRows(rows, true)
 
@@ -88,92 +91,6 @@ end, function(frame, key)
   end
   if #events == 0 then events[1] = { note = "Nothing waiting." } end
   frame.eventRows:SetRows(events, true)
-end)
-
--------------------------------------------------------------------------------------------
--- Bags & Bank: every slot as a tile, section by section
--------------------------------------------------------------------------------------------
-
-local function layoutSection(frame, y, title, seen, section, unknownText, shareNote)
-  local content = frame.area.content
-  local h = frame.headers[frame.nh + 1]
-  if not h then
-    h = UI.Text(content, "title", 15, C.gold)
-    frame.headers[frame.nh + 1] = h
-  end
-  frame.nh = frame.nh + 1
-  h:ClearAllPoints()
-  h:SetPoint("TOPLEFT", 0, y)
-  local parts = { title, "  " .. (seen and Kit.Seen(seen) or Kit.Seen(nil)) }
-  if section then parts[#parts + 1] = "  " .. UI.Code(C.faint) .. string.format("%d of %d free", section.free or 0, section.slots or 0) .. "|r" end
-  if shareNote then parts[#parts + 1] = "  " .. UI.Code(C.faint) .. shareNote .. "|r" end
-  h:SetText(table.concat(parts))
-  h:Show()
-  y = y - 24
-  if not section then
-    local note = frame.notes[frame.nn + 1]
-    if not note then
-      note = Kit.Note(content, Kit.UNKNOWN)
-      frame.notes[frame.nn + 1] = note
-    end
-    frame.nn = frame.nn + 1
-    note:ClearAllPoints()
-    note:SetPoint("TOPLEFT", 0, y)
-    note:SetPoint("TOPRIGHT", content, "TOPRIGHT", 0, y)
-    note:SetText(unknownText)
-    note:Show()
-    return y - 26
-  end
-  local col = 0
-  local function nextTile(item)
-    local tile = frame.tiles[frame.nt + 1]
-    if not tile then
-      tile = Kit.ItemTile(content, TILE)
-      frame.tiles[frame.nt + 1] = tile
-    end
-    frame.nt = frame.nt + 1
-    tile:ClearAllPoints()
-    tile:SetPoint("TOPLEFT", col * (TILE + TILE_GAP), y)
-    tile:SetItem(item)
-    tile:Show()
-    col = col + 1
-    if col >= frame.perRow then
-      col = 0
-      y = y - (TILE + TILE_GAP)
-    end
-  end
-  for _, box in ipairs(section.containers or {}) do
-    local items = Store.Items(box.items)
-    for _, item in ipairs(items) do nextTile(item) end
-    for _ = 1, box.free or 0 do nextTile(nil) end
-  end
-  if col > 0 then y = y - (TILE + TILE_GAP) end
-  return y - 10
-end
-
-Window:RegisterPane("bags", function(frame)
-  buildHead(frame)
-  frame.area = UI.ScrollArea(frame)
-  frame.area:SetPoint("TOPLEFT", 0, -HEAD)
-  frame.area:SetPoint("BOTTOMRIGHT")
-  frame.tiles, frame.headers, frame.notes = {}, {}, {}
-end, function(frame, key)
-  local c = fillHead(frame, key)
-  local width = frame.area:GetWidth() or 0
-  frame.area.content:SetWidth(width > 0 and width or 1000)
-  frame.perRow = width > 0 and math.max(1, math.floor((width + TILE_GAP) / (TILE + TILE_GAP))) or BAGS_PER_ROW
-  frame.nt, frame.nh, frame.nn = 0, 0, 0
-  local y = 0
-  y = layoutSection(frame, y, "Bags", c.bags and c.bags.seen, c.bags, "Not read yet. It is read as soon as this character logs in with Retrospect on.")
-  y = layoutSection(frame, y, "Character bank", c.bank and c.bank.seen, c.bank,
-    "Never opened with Retrospect running, so this isn't empty, just unknown. Visit a banker on this character.")
-  if R.db.accountBank then
-    y = layoutSection(frame, y, "Account bank", R.db.accountBank.seen, R.db.accountBank, nil, "shared by the whole account")
-  end
-  for i = frame.nt + 1, #frame.tiles do frame.tiles[i]:Hide() end
-  for i = frame.nh + 1, #frame.headers do frame.headers[i]:Hide() end
-  for i = frame.nn + 1, #frame.notes do frame.notes[i]:Hide() end
-  frame.area.content:SetHeight(math.max(1, -y))
 end)
 
 -------------------------------------------------------------------------------------------
@@ -344,11 +261,20 @@ end)
 -- Professions: rank, then every recipe NorgannonDB lists, known or not
 -------------------------------------------------------------------------------------------
 
+local PROF_FILTERS = { { key = "all", label = "All" }, { key = "known", label = "Known" }, { key = "unknown", label = "Not known" } }
+
 Window:RegisterPane("prof", function(frame)
   buildHead(frame)
-  frame.table = rowsTable(frame, { {}, { label = "Learned at", width = 80, right = true }, { label = "", width = 170, right = true } }, { rowHeight = 22 })
+  frame.filter = UI.Segmented(frame, PROF_FILTERS, function(key)
+    R.db.profFilter = key
+    Window:Refresh()
+  end, 20)
+  frame.filter:SetPoint("TOPRIGHT", 0, -2)
+  frame.table = rowsTable(frame, { { label = "Recipe" }, { label = "Learned at", width = 70, right = true }, { label = "", width = 180, bar = true } }, { rowHeight = 24 })
 end, function(frame, key)
   local c = fillHead(frame, key)
+  local filter = R.db.profFilter or "all"
+  frame.filter:Select(filter, true)
   local skills = {}
   for skill, p in pairs(c.professions and c.professions.skills or {}) do skills[#skills + 1] = { skill = skill, p = p } end
   table.sort(skills, function(a, b) return tostring(a.p.name) < tostring(b.p.name) end)
@@ -358,35 +284,38 @@ end, function(frame, key)
     local p = s.p
     local rank = tostring(p.rank or "?") .. (p.max and ("/" .. p.max) or "")
     local set = Store:Recipes(key, s.skill)
-    rows[#rows + 1] = { group = string.format("%s %s%s", tostring(p.name), rank, p.seen and ("  ·  recipes read " .. Today.Ago(p.seen)) or "") }
+    rows[#rows + 1] = { heading = true, cells = {
+      UI.Code(C.gold) .. tostring(p.name) .. "|r  " .. rank .. (p.seen and (UI.Code(C.muted) .. "  ·  recipes read " .. Today.Ago(p.seen) .. "|r") or ""),
+      "", { ratio = p.max and p.max > 0 and (p.rank or 0) / p.max or 0, color = UI.Accent("retrospect") } } }
     if not set then
-      rows[#rows + 1] = { note = "Open this profession once on this character so Retrospect can read its recipes." }
+      rows[#rows + 1] = { note = "Recipes unknown: open this profession once on this character and Retrospect reads them." }
     else
       local listed = {}
       for _, spell in ipairs(Core.DB:Recipes(s.skill)) do
         listed[spell] = true
-        local rec = Core.DB:Recipe(spell)
-        local ready = c.cooldowns and c.cooldowns[spell]
-        local state
-        if set[spell] then
-          state = UI.Code(Kit.UP) .. "Known|r"
-          if ready then
-            state = state .. UI.Code(C.faint) .. (ready <= R.Now() and " · cooldown ready" or " · ready in " .. Today.Span(ready - R.Now())) .. "|r"
+        local known = set[spell] == true
+        if filter == "all" or (filter == "known") == known then
+          local rec = Core.DB:Recipe(spell)
+          local ready = c.cooldowns and c.cooldowns[spell]
+          local state = known and (UI.Code(Kit.UP) .. "Known|r") or (UI.Code(C.muted) .. "Not known yet|r")
+          if known and ready then
+            state = state .. UI.Code(C.muted) .. (ready <= R.Now() and " · cooldown ready" or " · ready in " .. Today.Span(ready - R.Now())) .. "|r"
           end
-        else
-          state = UI.Code(C.faint) .. "Not known yet|r"
+          local name = tostring(Core.DB:RecipeName(spell))
+          rows[#rows + 1] = { cells = { known and name or (UI.Code(C.muted) .. name .. "|r"), tostring(rec and rec.learn or ""), state },
+            onClick = function(button)
+              if button == "RightButton" and rec and rec.item then
+                Core:ShowActionMenu(frame, "item", rec.item, { title = Core.DB:RecipeName(spell) })
+              end
+            end }
         end
-        rows[#rows + 1] = { cells = { tostring(Core.DB:RecipeName(spell)), tostring(rec and rec.learn or ""), state },
-          onClick = function(button)
-            if button == "RightButton" and rec and rec.item then
-              Core:ShowActionMenu(frame, "item", rec.item, { title = Core.DB:RecipeName(spell) })
-            end
-          end }
       end
       -- what the client knows and NorgannonDB doesn't, yet
-      for spell in pairs(set) do
-        if not listed[spell] then
-          rows[#rows + 1] = { cells = { R.In("C_Spell", "GetSpellName", spell) or ("Recipe " .. spell), "", UI.Code(Kit.UP) .. "Known|r" } }
+      if filter ~= "unknown" then
+        for spell in pairs(set) do
+          if not listed[spell] then
+            rows[#rows + 1] = { cells = { R.In("C_Spell", "GetSpellName", spell) or ("Recipe " .. spell), "", UI.Code(Kit.UP) .. "Known|r" } }
+          end
         end
       end
     end
@@ -395,36 +324,81 @@ end, function(frame, key)
 end)
 
 -------------------------------------------------------------------------------------------
--- Reputation
+-- Reputation: every faction with its standing in colour and a bar through that standing
 -------------------------------------------------------------------------------------------
+
+local VIEWS = { { key = "group", label = "By group" }, { key = "standing", label = "By standing" } }
+
+local function repRow(f)
+  local color = Kit.STANDING[f.r.reaction] or C.text
+  local ratio, numbers = Kit.StandingProgress(f.r)
+  return { cells = { f.name, UI.Code(color) .. Kit.StandingName(f.r.reaction) .. "|r", { ratio = ratio, color = color },
+    numbers or (UI.Code(C.muted) .. "Max|r") } }
+end
 
 Window:RegisterPane("rep", function(frame)
   buildHead(frame)
-  frame.table = rowsTable(frame, { { label = "Faction" }, { label = "Standing", width = 120 }, { label = "Progress", width = 140, right = true } }, { rowHeight = 24 })
+  frame.view = UI.Segmented(frame, VIEWS, function(key)
+    R.db.repView = key
+    Window:Refresh()
+  end, 20)
+  frame.view:SetPoint("TOPRIGHT", 0, -2)
+  frame.summary = UI.Text(frame, "body", 13, C.muted)
+  frame.summary:SetPoint("TOPLEFT", 0, -HEAD)
+  frame.table = Kit.Table(frame, { { label = "Faction" }, { label = "Standing", width = 96 }, { label = "Progress", width = 200, bar = true },
+    { label = "", width = 96, right = true } }, { rowHeight = 26 })
+  frame.table:SetPoint("TOPLEFT", 0, -(HEAD + 22))
+  frame.table:SetPoint("BOTTOMRIGHT")
 end, function(frame, key)
   local c = fillHead(frame, key)
+  local view = R.db.repView or "group"
+  frame.view:Select(view, true)
   local rows = {}
   if not c.reputation then
-    rows[1] = { note = "Not read yet." }
+    frame.summary:SetText("")
+    rows[1] = { note = "Not read yet. It is read when this character logs in with Retrospect on." }
+    frame.table:SetRows(rows, true)
+    return
+  end
+  local factions, counts = {}, {}
+  for id, r in pairs(c.reputation.list) do
+    local info = R.db.factions[id] or {}
+    factions[#factions + 1] = { id = id, r = r, name = info.name or ("Faction " .. id), group = info.group or "Other" }
+    counts[r.reaction] = (counts[r.reaction] or 0) + 1
+  end
+  table.sort(factions, function(a, b) return a.name < b.name end)
+
+  -- the character's standing at a glance, best first
+  local summary = {}
+  for reaction = 8, 1, -1 do
+    if counts[reaction] then
+      summary[#summary + 1] = UI.Code(Kit.STANDING[reaction]) .. counts[reaction] .. " " .. Kit.StandingName(reaction) .. "|r"
+    end
+  end
+  frame.summary:SetText(table.concat(summary, UI.Code(C.faint) .. "  ·  |r") .. "   " .. Kit.Seen(c.reputation.seen))
+
+  if view == "standing" then
+    for reaction = 8, 1, -1 do
+      if counts[reaction] then
+        rows[#rows + 1] = { group = UI.Code(Kit.STANDING[reaction]) .. Kit.StandingName(reaction) .. "|r" }
+        for _, f in ipairs(factions) do
+          if f.r.reaction == reaction then rows[#rows + 1] = repRow(f) end
+        end
+      end
+    end
   else
     local groups, order = {}, {}
-    for id, r in pairs(c.reputation.list) do
-      local info = R.db.factions[id] or {}
-      local g = info.group or "Other"
-      if not groups[g] then
-        groups[g] = {}
-        order[#order + 1] = g
+    for _, f in ipairs(factions) do
+      if not groups[f.group] then
+        groups[f.group] = {}
+        order[#order + 1] = f.group
       end
-      table.insert(groups[g], { id = id, r = r, name = info.name or ("Faction " .. id) })
+      table.insert(groups[f.group], f)
     end
     table.sort(order)
-    rows[1] = { note = "As last seen, " .. Today.Ago(c.reputation.seen) .. "." }
     for _, g in ipairs(order) do
       rows[#rows + 1] = { group = g }
-      table.sort(groups[g], function(a, b) return a.name < b.name end)
-      for _, f in ipairs(groups[g]) do
-        rows[#rows + 1] = { cells = { f.name, R.Compare.StandingName(f.r.reaction), R.Compare.RepProgress(f.r) or UI.Code(C.faint) .. "Max|r" } }
-      end
+      for _, f in ipairs(groups[g]) do rows[#rows + 1] = repRow(f) end
     end
   end
   frame.table:SetRows(rows, true)

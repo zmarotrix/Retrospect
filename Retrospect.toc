@@ -2,7 +2,7 @@
 ## Title: |cffffb35cRetrospect|r
 ## Notes: What your other characters had when you last saw them: bags, bank, gold, mail, auctions, recipes, reputations and quests, across the account. Powered by NorgannonDB. /retro
 ## Author: Maro
-## Version: 0.9.1
+## Version: 0.9.2
 ## X-License: All Rights Reserved
 ## Dependencies: NorgannonDB, NorgannonDB_Core
 ## SavedVariables: RetrospectDB
@@ -27,6 +27,7 @@ items.lua
 compare.lua
 gold.lua
 character.lua
+bags.lua
 tooltips.lua
 probe.lua
 settings.lua
