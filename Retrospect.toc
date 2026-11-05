@@ -1,0 +1,32 @@
+## Interface: 16001
+## Title: |cffffb35cRetrospect|r
+## Notes: What your other characters had when you last saw them: bags, bank, gold, mail, auctions, recipes, reputations and quests, across the account. Powered by NorgannonDB. /retro
+## Author: Maro
+## Version: 0.9.0
+## X-License: All Rights Reserved
+## Dependencies: NorgannonDB, NorgannonDB_Core
+## SavedVariables: RetrospectDB
+## IconTexture: Interface\AddOns\NorgannonDB_Core\media\marks\retrospect
+## AddonCompartmentFunc: Retrospect_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Retrospect_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Retrospect_OnAddonCompartmentLeave
+
+core.lua
+store.lua
+scan_character.lua
+scan_bags.lua
+scan_mail.lua
+scan_auctions.lua
+scan_progress.lua
+index.lua
+today.lua
+kit.lua
+window.lua
+pane_today.lua
+items.lua
+compare.lua
+gold.lua
+character.lua
+tooltips.lua
+probe.lua
+settings.lua

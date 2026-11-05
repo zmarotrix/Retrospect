@@ -1,0 +1,5 @@
+<Bindings>
+  <Binding name="RETROSPECT_TOGGLE" header="RETROSPECT" category="ADDONS">
+    Retrospect:Toggle()
+  </Binding>
+</Bindings>
