@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.3, 2026-11-06
+
+- Which containers a character has, and the kinds of item, now come from the Core (`Core.Bags`, Core 1.16), shared
+  with Providence. Nothing changes on screen.
+
 ## 0.9.2, 2026-11-05
 
 From the first real saved file, and a design pass over every screen.

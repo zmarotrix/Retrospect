@@ -20,25 +20,12 @@ local FALLBACK_WIDTH = 1000 -- until the real width is known
 local CAPACITY_BAR = 120
 local FULL = .9             -- share of a place's slots at which its bar turns to a warning
 
-local KINDS = {
-  { key = "gear", label = "Gear" }, { key = "consumable", label = "Consumables" }, { key = "trade", label = "Trade goods" },
-  { key = "recipe", label = "Recipes" }, { key = "quest", label = "Quest items" }, { key = "key", label = "Keys" },
-  { key = "junk", label = "Junk" }, { key = "other", label = "Other" },
-}
--- Enum.ItemClass: what each class of item goes under
-local BY_CLASS = { [0] = "consumable", [2] = "gear", [4] = "gear", [5] = "trade", [7] = "trade", [9] = "recipe", [12] = "quest", [13] = "key" }
+local KINDS = Core.Bags.KINDS
 local VIEWS = { { key = "type", label = "By type" }, { key = "bag", label = "By bag" } }
 
----Which kind an item is: from the client, else NorgannonDB; poor quality is junk unless a quest wants it.
+---Which kind an item is; a missing quality comes from what Retrospect has seen.
 function Bags.Kind(id, quality)
-  local _, _, _, _, _, class = R.In("C_Item", "GetItemInfoInstant", id)
-  if class == nil and NorgannonDB.Peek then
-    local record = NorgannonDB:Peek("items", id)
-    class = record and record.class
-  end
-  local kind = BY_CLASS[class] or "other"
-  if (quality or Index:Quality(id)) == 0 and kind ~= "quest" then return "junk" end
-  return kind
+  return Core.Bags.Kind(id, quality or Index:Quality(id))
 end
 
 ---A place's stacks, added up per item (copies with an enchant stay apart), grouped by kind and

@@ -9,10 +9,10 @@ local DB = NorgannonDB
 Retrospect = { addonName = ADDON or "Retrospect" }
 local R = Retrospect
 
-if not (Core and Core:Require(1, 15)) or not (DB and DB:RequireSchema(1, 4)) then
+if not (Core and Core:Require(1, 16)) or not (DB and DB:RequireSchema(1, 4)) then
   R.disabled = true
   C_Timer.After(5, function()
-    print("|cffffb35cRetrospect|r needs NorgannonDB 1.4 and NorgannonDB Core 1.15 or newer; it is turned off.")
+    print("|cffffb35cRetrospect|r needs NorgannonDB 1.4 and NorgannonDB Core 1.16 or newer; it is turned off.")
   end)
   return
 end

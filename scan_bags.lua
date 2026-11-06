@@ -1,17 +1,12 @@
--- Bags, bank and guild bank. The client's bank has been tabs and classic bank bags on different
--- builds, so both are read: the character's tabs from C_Bank when it answers, else whichever bank
--- containers have slots. The bank can only be read while it is open; the rest of the time this
--- is what it held when last seen. Account bank tabs belong to the whole account.
+-- Bags, bank and guild bank. Core.Bags says which containers there are. The bank can only be read
+-- while it is open; the rest of the time this is what it held when last seen. Account bank tabs
+-- belong to the whole account.
 
 local Core = NorgannonCore
 local R = Retrospect
 if R.disabled then return end
 
 local Scan, Store = R.Scan, R.Store
-
-local function bagIndex()
-  return (rawget(_G, "Enum") and Enum.BagIndex) or {}
-end
 
 ---One container as { id, size, free, items = packed }, or nil if it has no slots.
 local function readContainer(id, name, keyring)
@@ -49,28 +44,9 @@ end
 -- Bags: only the bags that changed are read again
 -------------------------------------------------------------------------------------------
 
----A bag's own name ("Small Silk Pack"), from the item in its slot.
-local function bagName(id, fallback)
-  local slot = R.In("C_Container", "ContainerIDToInventoryID", id)
-  local link = slot and R.Global("GetInventoryItemLink", "player", slot)
-  return link and link:match("%[(.-)%]") or fallback
-end
-
-local function bagList()
-  local B = bagIndex()
-  local list = { { id = B.Backpack or 0, name = "Backpack" } }
-  for i = 1, 4 do
-    local id = B["Bag_" .. i] or i
-    list[#list + 1] = { id = id, name = bagName(id, "Bag " .. i) }
-  end
-  if B.ReagentBag then list[#list + 1] = { id = B.ReagentBag, name = bagName(B.ReagentBag, "Reagent bag") } end
-  if B.Keyring then list[#list + 1] = { id = B.Keyring, name = "Keyring", keyring = true } end
-  return list
-end
-
 function Scan:Bags()
   local c = Store:Me()
-  local section = readSection(bagList())
+  local section = readSection(Core.Bags:BagList())
   Scan.Note("Bags", section.slots > 0, string.format("%d slots, %d free", section.slots, section.free))
   -- early in a login the client can still report no slots; that isn't an empty backpack
   if section.slots > 0 then
@@ -91,43 +67,10 @@ end
 
 local bankOpen = false
 
----Character bank containers: the purchased tabs, else every bank container that has slots.
-local function bankList(kind)
-  local B = bagIndex()
-  local list = {}
-  local bankType = rawget(_G, "Enum") and Enum.BankType and Enum.BankType[kind]
-  if bankType ~= nil then
-    local tabs = R.In("C_Bank", "FetchPurchasedBankTabData", bankType)
-    if type(tabs) == "table" then
-      for _, tab in ipairs(tabs) do
-        if type(tab) == "table" and tab.ID then list[#list + 1] = { id = tab.ID, name = tab.name } end
-      end
-    end
-    if #list == 0 then
-      local ids = R.In("C_Bank", "FetchPurchasedBankTabIDs", bankType)
-      if type(ids) == "table" then
-        for i, id in ipairs(ids) do list[#list + 1] = { id = id, name = "Tab " .. i } end
-      end
-    end
-  end
-  if #list > 0 then return list end
-  local prefix = kind == "Account" and "AccountBankTab_" or "CharacterBankTab_"
-  for i = 1, 9 do
-    if B[prefix .. i] then list[#list + 1] = { id = B[prefix .. i], name = "Tab " .. i } end
-  end
-  if kind == "Character" then
-    if B.Bank then list[#list + 1] = { id = B.Bank, name = "Bank" } end
-    for i = 1, 7 do
-      if B["BankBag_" .. i] then list[#list + 1] = { id = B["BankBag_" .. i], name = "Bank bag " .. i } end
-    end
-  end
-  return list
-end
-
 function Scan:Bank()
   if not bankOpen then return end
   local c = Store:Me()
-  local section = readSection(bankList("Character"))
+  local section = readSection(Core.Bags:BankList("Character"))
   if section.slots > 0 then
     c.bank = section
     Scan.Note("Bank", true, string.format("%d slots in %d containers", section.slots, #section.containers))
@@ -135,7 +78,7 @@ function Scan:Bank()
     Scan.Note("Bank", false, "the bank was open but no container had slots")
   end
   if R.In("C_PlayerInfo", "IsAccountBankEnabled") ~= false then
-    local shared = readSection(bankList("Account"))
+    local shared = readSection(Core.Bags:BankList("Account"))
     if shared.slots > 0 then
       R.db.accountBank = shared
       Scan.Note("Account bank", true, shared.slots .. " slots")
