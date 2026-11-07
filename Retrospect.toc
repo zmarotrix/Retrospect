@@ -1,5 +1,6 @@
 ## Interface: 16001
 ## Title: |cffffb35cRetrospect|r
+## Category: NorgannonDB
 ## Notes: What your other characters had when you last saw them: bags, bank, gold, mail, auctions, recipes, reputations and quests, across the account. Powered by NorgannonDB. /retro
 ## Author: Maro
 ## Version: 0.9.3
