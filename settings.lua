@@ -64,9 +64,6 @@ Core:OnLogin(function()
       R.Window:ResetSize()
     end
   end } })
-  list:Toggle("Show the minimap button", "Retrospect is also in the game's addon menu and opens with /retro.",
-    function() return Core.MinimapButton:IsShown("retrospect") end,
-    function(on) Core.MinimapButton:SetShown("retrospect", on) end)
 
   list:Header("Chat")
   list:Toggle("One line at login when something is urgent", "Only for what can't wait, such as mail about to expire. Never on /reload.",
@@ -99,7 +96,7 @@ Core:OnLogin(function()
 
   page:SetScript("OnShow", function() list:Refresh() end)
   R.settingsPage, R.settingsList = page, list
-  R.settingsCategory = Core:AddSettingsPage(page, "Retrospect")
+  R:AddSettingsPage(page)
 
   -- Retrospect's hot paths for /norg perf (wrapped only while measuring)
   local function perf(label, tbl, method) Core:RegisterPerf("Retrospect: " .. label, tbl, method, "retrospect") end
@@ -112,11 +109,3 @@ Core:OnLogin(function()
   perf("today's list", R.Today, "Events")
   perf("window refresh", R.Window, "Refresh")
 end)
-
-function R:OpenSettings()
-  if self.settingsCategory and Settings and Settings.OpenToCategory then
-    Settings.OpenToCategory(self.settingsCategory:GetID())
-  else
-    Core:OpenSettings()
-  end
-end

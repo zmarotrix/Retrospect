@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.10.0, 2026-11-07
+
+- Built on NorgannonDB Core 1.20's `Core:NewAddon`: the same commands, window and settings, with Core's setup and
+  client calls in place of Retrospect's own. `/retro help` lists the commands; `/retro <item>` still searches.
+- The "Show the minimap button" setting is gone: NorgannonDB > Minimap pins any add-on.
+- Settings asked for in combat open when the fight ends.
+
 ## 0.9.3, 2026-11-06
 
 - Which containers a character has, and the kinds of item, now come from the Core (`Core.Bags`, Core 1.16), shared
