@@ -59,7 +59,6 @@ Professions (every recipe, known or not) and Reputation.
 | <img src="https://raw.githubusercontent.com/zmarotrix/NorgannonDB_Core/main/.github/suite/retrospect.png" width="36"> | **Retrospect** | Your characters, account-wide: what each one has, knows and has waiting |
 | <img src="https://raw.githubusercontent.com/zmarotrix/NorgannonDB_Core/main/.github/suite/norgannondb.png" width="36"> | **[NorgannonDB](https://github.com/zmarotrix/NorgannonDB)** | The open game database underneath, with **NorgannonDB Core**, the shared runtime |
 | <img src="https://raw.githubusercontent.com/zmarotrix/NorgannonDB_Core/main/.github/suite/collector.png" width="36"> | **[NorgannonDB Collector](https://github.com/zmarotrix/NorgannonDBCollector)** | Help map Azeroth: improves the database while you play |
-| <img src="https://raw.githubusercontent.com/zmarotrix/NorgannonDB_Core/main/.github/suite/archivum.png" width="36"> | Archivum | Look anything up in game. *Coming later* |
 
 ## Getting started
 
