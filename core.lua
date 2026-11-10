@@ -7,7 +7,7 @@ local Core = NorgannonCore
 
 if not (Core and Core.NewAddon) then
   Retrospect = { disabled = true }
-  print("Retrospect needs NorgannonDB Core 1.20 or newer; it is turned off.")
+  print("Retrospect needs NorgannonDB Core 1.22 or newer; it is turned off.")
   return
 end
 
@@ -43,7 +43,7 @@ R.DEFAULTS = {
 -- The suite's plumbing (Core:NewAddon): version checks, RetrospectDB with its defaults, the slash command, the minimap
 -- row and the add-on menu. Left-click and /retro open the window; right-click opens settings; /retro <item> searches.
 Core:NewAddon("retrospect", {
-  folder = ADDON, api = { 1, 20 }, data = { 1, 4 },
+  folder = ADDON, api = { 1, 22 }, data = { 1, 4 },
   db = "RetrospectDB", defaults = R.DEFAULTS,
   slash = { "/retro", "/retrospect" },
   commands = { probe = { function() R.Probe:Report() end, "what Retrospect can read on this client" } },

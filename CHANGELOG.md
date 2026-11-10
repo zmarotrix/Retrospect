@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.1 (2026-11-09)
+
+- Asks for Norgannon Core 1.22 or newer, the first Core with everything it uses. An older Core now gets a clear "update Norgannon Core" message instead of errors.
+
 ## 0.10.0, 2026-11-07
 
 - Built on NorgannonDB Core 1.20's `Core:NewAddon`: the same commands, window and settings, with Core's setup and
