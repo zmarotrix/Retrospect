@@ -7,7 +7,7 @@ local Core = NorgannonCore
 
 if not (Core and Core.NewAddon) then
   Retrospect = { disabled = true }
-  print("Retrospect needs NorgannonDB Core 1.22 or newer; it is turned off.")
+  print("Retrospect needs Norgannon Core 1.22 or newer; it is turned off.")
   return
 end
 
